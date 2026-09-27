@@ -1,3 +1,7 @@
+import json
+import urllib.error
+import urllib.request
+
 import pandas as pd
 import streamlit as st
 from pathlib import Path
@@ -14,30 +18,13 @@ from engine.curriculum_parser import CurriculumPDFParser
 # they stay consistent across every native widget and survive Streamlit upgrades.
 st.set_page_config(page_title="SkillUpIndia", page_icon=":material/target:", layout="wide", initial_sidebar_state="expanded")
 
-# Theme-aware custom CSS, tinted to match whichever theme (light/dark/system)
-# is active. Dark mode itself is native: users switch it from the app's
-# Settings menu (top-right kebab menu -> Settings -> Theme).
+# The app ships a single dark theme (.streamlit/config.toml), so this CSS is
+# written for dark only; nothing here depends on the visitor's system theme.
 # Never write a literal HTML tag (even inside a /* comment */) in this CSS:
 # st.html's sanitizer doesn't understand CSS context and drops the whole block.
-_theme_type = st.context.theme.type
-if _theme_type == "dark":
-    _c1, _c2, _c3 = "rgba(129, 140, 248, 0.22)", "rgba(196, 181, 253, 0.16)", "rgba(34, 211, 238, 0.10)"
-    _glass, _glass_edge = "rgba(21, 19, 40, 0.55)", "rgba(165, 180, 252, 0.14)"
-    _drop, _drop_hover = "rgba(165, 180, 252, 0.35)", "#818cf8"
-    _bar = "rgba(11, 11, 24, 0.72)"
-    _hero = "rgba(15, 13, 32, 0.42)"
-else:
-    _c1, _c2, _c3 = "rgba(79, 70, 229, 0.16)", "rgba(124, 58, 237, 0.12)", "rgba(8, 145, 178, 0.08)"
-    _glass, _glass_edge = "rgba(255, 255, 255, 0.6)", "rgba(79, 70, 229, 0.12)"
-    _drop, _drop_hover = "rgba(79, 70, 229, 0.3)", "#4f46e5"
-    _bar = "rgba(255, 255, 255, 0.72)"
-    _hero = "linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #312e81 100%)"
-
-# Dark mode uses the looping brand video as the page background (rendered
-# below with st.video); light mode keeps the drifting gradient mesh, since a
-# dark video under dark body text would be unreadable.
-if _theme_type == "dark":
-    _bg_css = """
+st.html("""<style>
+/* The looping brand video (rendered below with st.video) is the page
+   background. */
 [data-testid="stApp"] {
     background: transparent;
 }
@@ -70,76 +57,48 @@ if _theme_type == "dark":
 @media (prefers-reduced-motion: reduce) {
     .st-key-bg_video video { display: none; }
 }
-/* The hero becomes a glass panel so the video reads through it. */
+/* The hero is a glass panel so the video reads through it. */
 .hero {
+    background: rgba(15, 13, 32, 0.42);
     border: 1px solid rgba(165, 180, 252, 0.16);
     backdrop-filter: blur(12px) saturate(140%);
     -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
-"""
-else:
-    _bg_css = """
-[data-testid="stApp"] {
-    background-image:
-        radial-gradient(circle, __C1__, transparent 60%),
-        radial-gradient(circle, __C2__, transparent 60%),
-        radial-gradient(circle, __C3__, transparent 65%);
-    background-repeat: no-repeat;
-    background-size: 55% 55%, 50% 50%, 60% 60%;
-    background-position: 10% 15%, 85% 10%, 50% 95%;
-    animation: skillup-mesh-drift 28s ease-in-out infinite alternate;
-}
-@keyframes skillup-mesh-drift {
-    0%   { background-position: 10% 15%, 85% 10%, 50% 95%; }
-    50%  { background-position: 22% 28%, 72% 24%, 62% 82%; }
-    100% { background-position: 6% 10%, 92% 6%, 38% 98%; }
-}
-@media (prefers-reduced-motion: reduce) {
-    [data-testid="stApp"] { animation: none; }
-}
-"""
 
-_mesh_css = (_bg_css + """
-
-/* Frosted-glass cards over the drifting mesh: metric tiles, expanders, and
-   the two dashboard panels (targeted by their container keys). */
+/* Frosted-glass cards over the video: metric tiles, expanders, and the
+   dashboard panels (targeted by their container keys). */
 [data-testid="stMetric"],
 [data-testid="stExpander"] details,
 .st-key-coverage_card,
 .st-key-action_feed,
 .st-key-pulse_card {
-    background: __GLASS__;
-    border-color: __EDGE__ !important;
+    background: rgba(21, 19, 40, 0.55);
+    border-color: rgba(165, 180, 252, 0.14) !important;
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
 /* A dashed, glassy dropzone reads as a drop target rather than a flat box. */
 [data-testid="stFileUploaderDropzone"] {
-    background: __GLASS__;
-    border: 1.5px dashed __DROP__;
+    background: rgba(21, 19, 40, 0.55);
+    border: 1.5px dashed rgba(165, 180, 252, 0.35);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     transition: border-color 0.2s ease;
 }
 [data-testid="stFileUploaderDropzone"]:hover {
-    border-color: __DROPHOVER__;
+    border-color: #818cf8;
 }
 
-/* Frosted top bar: the header also holds the top navigation and the theme
+/* Frosted top bar: the header also holds the top navigation and the main
    menu, so it is restyled rather than hidden; content scrolls under glass. */
 [data-testid="stHeader"] {
-    background: __BAR__;
+    background: rgba(11, 11, 24, 0.72);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border-bottom: 1px solid __EDGE__;
+    border-bottom: 1px solid rgba(165, 180, 252, 0.14);
 }
-.hero {
-    background: __HERO__;
-}
-""").replace("__HERO__", _hero).replace("__BAR__", _bar).replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
 
-st.html("<style>" + _mesh_css + """
 /* Start content just below the 3.75rem header instead of 7.5rem down.
    Side gutters are left at Streamlit's defaults for readable line lengths. */
 [data-testid="stMainBlockContainer"] {
@@ -273,33 +232,33 @@ store = SkillUpStore(str(BASE / "skillupindia.db"))
 
 # st.video serves the file from a cacheable URL once, instead of re-sending
 # a Base64 copy on every rerun; the CSS above pins it behind the page.
-if _theme_type == "dark":
-    with st.container(key="bg_video"):
-        # Crossfaded to loop seamlessly; regenerate with scripts/make_bg_loop.py.
-        st.video(str(BASE / "assets" / "skillup_bg_loop.mp4"), autoplay=True, loop=True, muted=True)
-        # st.video has no playsinline option, and iPhones won't autoplay inline
-        # without it. The pause listener resumes playback if a rerun pauses the
-        # video while the page is visible; the retries cover late mounting.
-        st.html(
-            """<script>
-            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-            const fixBg = () => document.querySelectorAll(".st-key-bg_video video").forEach((v) => {
-                v.muted = true;
-                v.playsInline = true;
-                v.setAttribute("playsinline", "");
-                v.controls = false;
-                if (reduceMotion) { v.pause(); return; }
-                if (!v.dataset.keepAlive) {
-                    v.dataset.keepAlive = "1";
-                    v.addEventListener("pause", () => { if (!document.hidden) v.play().catch(() => {}); });
-                }
-                if (v.paused && !document.hidden) v.play().catch(() => {});
-            });
-            [0, 500, 2000].forEach((ms) => setTimeout(fixBg, ms));
-            document.addEventListener("visibilitychange", fixBg);
-            </script>""",
-            unsafe_allow_javascript=True,
-        )
+with st.container(key="bg_video"):
+    # Crossfaded to loop seamlessly; regenerate with scripts/make_bg_loop.py.
+    st.video(str(BASE / "assets" / "skillup_bg_loop.mp4"), autoplay=True, loop=True, muted=True)
+    # st.video has no playsinline option, and iPhones won't autoplay inline
+    # without it. The pause listener resumes playback if a rerun pauses the
+    # video while the page is visible; the retries cover late mounting.
+    st.html(
+        """<script>
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const fixBg = () => document.querySelectorAll(".st-key-bg_video video").forEach((v) => {
+            v.muted = true;
+            v.playsInline = true;
+            v.setAttribute("playsinline", "");
+            v.controls = false;
+            if (reduceMotion) { v.pause(); return; }
+            if (!v.dataset.keepAlive) {
+                v.dataset.keepAlive = "1";
+                v.addEventListener("pause", () => { if (!document.hidden) v.play().catch(() => {}); });
+            }
+            if (v.paused && !document.hidden) v.play().catch(() => {});
+        });
+        [0, 500, 2000].forEach((ms) => setTimeout(fixBg, ms));
+        document.addEventListener("visibilitychange", fixBg);
+        </script>""",
+        unsafe_allow_javascript=True,
+    )
+
 ROLE_OPTIONS = ["Data Analyst", "Business Analyst", "Data Engineer", "Power BI Developer"]
 
 # st.dataframe paints cells on a canvas, so CSS can't reach them: column_config
@@ -317,7 +276,7 @@ GAP_COLUMNS = {
         "Depth", format="%.2f", help="How deeply the matched topic is taught."),
     "Effective Coverage": st.column_config.ProgressColumn(
         "Coverage", min_value=0, max_value=1, format="%.2f",
-        color="#22d3ee" if _theme_type == "dark" else "#0891b2",
+        color="#22d3ee",
         help="Match x depth: how well the curriculum covers this skill."),
     "Source Framework": st.column_config.TextColumn("Source"),
     "Weighted Gap Score": st.column_config.NumberColumn(
@@ -325,11 +284,7 @@ GAP_COLUMNS = {
         help="Demand x (1 - coverage). 0.12+ Moderate, 0.25+ High, 0.40+ Critical."),
     "Status": st.column_config.TextColumn("Status"),
 }
-_STATUS_COLORS = (
-    {"Critical": "#f87171", "High": "#fb923c", "Moderate": "#fbbf24", "Low": "#4ade80"}
-    if _theme_type == "dark"
-    else {"Critical": "#dc2626", "High": "#c2410c", "Moderate": "#a16207", "Low": "#15803d"}
-)
+_STATUS_COLORS = {"Critical": "#f87171", "High": "#fb923c", "Moderate": "#fbbf24", "Low": "#4ade80"}
 
 
 def gap_table(df):
@@ -338,6 +293,58 @@ def gap_table(df):
         column_config=GAP_COLUMNS,
         hide_index=True,
         width="stretch",
+    )
+
+
+FEEDBACK_AREAS = ["Skill extraction", "Skills alignment", "Something else"]
+FEEDBACK_AREA_HELP = {
+    "Skill extraction": "A skill was missed or wrongly detected in a resume, job description, or syllabus.",
+    "Skills alignment": "A curriculum match, coverage value, or gap score looks wrong.",
+    "Something else": "Any other bug or suggestion.",
+}
+FEEDBACK_PAGES = [
+    "Dashboard", "Market pulse", "Data ingestion", "Curriculum audit", "Curriculum upload",
+    "Student profile", "Resume to profile", "Upskill bridge", "Progress tracking", "Other",
+]
+FEEDBACK_LIMIT = 5  # submissions per browser session, to deter spam
+
+
+def github_issue_settings():
+    """(token, repo) from st.secrets["github"], or None when not configured."""
+    try:
+        gh = st.secrets["github"]
+        return gh["token"], gh["repo"]
+    except (KeyError, FileNotFoundError):
+        return None
+
+
+def open_github_issue(title, body):
+    """Open an issue on the configured repo; return its URL, or None if that isn't possible."""
+    settings = github_issue_settings()
+    if settings is None:
+        return None
+    token, repo = settings
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/issues",
+        data=json.dumps({"title": title, "body": body, "labels": ["feedback"]}).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.load(response)["html_url"]
+    except (urllib.error.URLError, KeyError, ValueError):
+        return None
+
+
+def feedback_link(area, page):
+    st.page_link(
+        FEEDBACK_PAGE, label="Something wrong here? Report it", icon=":material/flag:",
+        query_params={"area": area, "page": page},
     )
 
 
@@ -404,10 +411,9 @@ def dashboard_page():
             value_name="Score",
         )
         long["Measure"] = long["Measure"].map({"Industry Demand Weight": "Demand", "Effective Coverage": "Coverage"})
-        pair = ("#818cf8", "#22d3ee") if _theme_type == "dark" else ("#4f46e5", "#0891b2")
         fig = px.bar(
             long, x="Score", y="Market Skill", color="Measure", barmode="group", orientation="h",
-            color_discrete_map={"Demand": pair[0], "Coverage": pair[1]},
+            color_discrete_map={"Demand": "#818cf8", "Coverage": "#22d3ee"},
         )
         fig.update_layout(
             height=380,
@@ -455,7 +461,7 @@ def market_pulse_page():
             orientation="h",
             text="demand_percentage",
             labels={"skill_normalized": "Skill", "demand_percentage": "Demand %"},
-            color_discrete_sequence=["#818cf8" if _theme_type == "dark" else "#4f46e5"],
+            color_discrete_sequence=["#818cf8"],
         )
         fig.update_traces(texttemplate="%{text}%", textposition="outside", cliponaxis=False)
         fig.update_layout(
@@ -502,6 +508,7 @@ def curriculum_audit_page():
     gap_table(f)
     csv = f.to_csv(index=False).encode("utf-8")
     st.download_button("Export audit report", csv, "curriculum_audit.csv", "text/csv", icon=":material/download:")
+    feedback_link("Skills alignment", "Curriculum audit")
 
 
 def upskill_bridge_page():
@@ -568,6 +575,7 @@ def resume_to_profile_page():
 
         st.success(f"Detected {len(r['skills'])} explicit skills", icon=":material/check_circle:")
         st.info(f"**Extracted skills:** {', '.join(r['skills']) or 'None detected'}")
+        feedback_link("Skill extraction", "Resume to profile")
 
         path = LearningPathEngine().build(st.session_state.matrix, r["skills"])
         st.subheader("Personalized priorities")
@@ -626,6 +634,7 @@ def curriculum_upload_page():
 
         st.success(f"Detected {len(skills)} supported skills", icon=":material/check_circle:")
         st.info(f"**Extracted topics:** {', '.join(skills) or 'None detected'}")
+        feedback_link("Skill extraction", "Curriculum upload")
 
         if skills:
             c = pd.DataFrame({"Skill": skills, "DepthWeight": [0.65] * len(skills), "source": ["Uploaded Curriculum"] * len(skills)})
@@ -671,11 +680,73 @@ def data_ingestion_page():
         st.subheader("Extracted job data")
         df_jobs = pd.DataFrame([{"Job ID": j["job_id"], "Title": j["title"], "Company": j["company"], "Skills": ", ".join(j["skills"])} for j in jobs])
         st.dataframe(df_jobs, width="stretch", hide_index=True)
+        feedback_link("Skill extraction", "Data ingestion")
+
+
+def feedback_page():
+    st.header("Feedback", icon=":material/feedback:")
+    st.caption("Spotted a skill the parser missed or misread, or a curriculum match that looks wrong? Tell us here.")
+
+    area = st.segmented_control(
+        "What is it about?", FEEDBACK_AREAS, default=FEEDBACK_AREAS[0], required=True,
+        key="area", bind="query-params",
+    )
+    st.caption(FEEDBACK_AREA_HELP[area])
+    page = st.selectbox("Where did it happen?", FEEDBACK_PAGES, key="page", bind="query-params")
+
+    posts_publicly = github_issue_settings() is not None
+    with st.form("feedback_form", clear_on_submit=True):
+        skill = st.text_input("Skill involved (optional)", placeholder="e.g. Power BI", max_chars=60)
+        details = st.text_area(
+            "What happened?", max_chars=2000,
+            placeholder="e.g. My resume says 'PowerBI' but Power BI wasn't detected.",
+        )
+        expected = st.text_area("What did you expect? (optional)", max_chars=1000)
+        if posts_publicly:
+            st.caption(":material/public: Feedback is posted as a public GitHub issue. Don't include personal details.")
+        sent = st.form_submit_button("Send feedback", type="primary", icon=":material/send:")
+
+    if sent:
+        sent_so_far = st.session_state.get("feedback_sent", 0)
+        details, skill, expected = details.strip(), skill.strip(), expected.strip()
+        if not details:
+            st.error("Please describe what happened.", icon=":material/error:")
+        elif sent_so_far >= FEEDBACK_LIMIT:
+            st.warning(f"You've sent {FEEDBACK_LIMIT} reports this session. Thanks! Please try again later.", icon=":material/hourglass:")
+        else:
+            title = f"[{area}] {page}: {details.splitlines()[0][:70]}"
+            body = (
+                f"**Area:** {area}  \n**Page:** {page}  \n**Skill:** {skill or '-'}\n\n"
+                f"**What happened**\n\n{details}\n\n**Expected**\n\n{expected or '-'}\n\n"
+                "_Submitted from the SkillUpIndia feedback form._"
+            )
+            issue_url = open_github_issue(title, body)
+            store.add_feedback(area, page, skill, details, expected, issue_url)
+            st.session_state.feedback_sent = sent_so_far + 1
+            if issue_url:
+                st.success(f"Thanks! Logged as [a GitHub issue]({issue_url}).", icon=":material/check_circle:")
+            elif posts_publicly:
+                st.warning("Thanks! Saved here, but it couldn't be sent to GitHub right now.", icon=":material/cloud_off:")
+            else:
+                st.success("Thanks! Your feedback has been saved.", icon=":material/check_circle:")
+
+    rows = store.feedback()
+    with st.expander(f"Submitted feedback ({len(rows)})", icon=":material/inbox:"):
+        if rows:
+            st.dataframe(
+                pd.DataFrame(rows, columns=["Submitted", "Area", "Page", "Skill", "What happened", "Expected", "Issue"]),
+                column_config={"Issue": st.column_config.LinkColumn("Issue", display_text="Open")},
+                hide_index=True,
+                width="stretch",
+            )
+        else:
+            st.caption("No feedback yet.")
 
 
 # 4. Navigation
 # Pages are grouped into the three portals in a top bar rather than st.tabs:
 # each page keeps its own URL and only the active one executes.
+FEEDBACK_PAGE = st.Page(feedback_page, title="Feedback", icon=":material/feedback:", url_path="feedback")
 pg = st.navigation(
     {
         "": [
@@ -695,6 +766,7 @@ pg = st.navigation(
             st.Page(upskill_bridge_page, title="Upskill bridge", icon=":material/route:", url_path="upskill-bridge"),
             st.Page(progress_tracking_page, title="Progress tracking", icon=":material/bar_chart:", url_path="progress-tracking"),
         ],
+        "Help": [FEEDBACK_PAGE],
     },
     position="top",
 )

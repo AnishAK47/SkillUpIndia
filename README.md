@@ -24,8 +24,9 @@ The top navigation groups the pages by who uses them.
 | Students | **Resume to profile** | Upload a resume PDF to extract skills, see personalised priorities, and save it as a profile. |
 | Students | **Upskill bridge** | Pick your current skills and get up to 15 prioritised learning actions, downloadable as CSV. |
 | Students | **Progress tracking** | Mark each of the top 15 market skills as Not Started, Learning, or Completed for a saved profile. |
+| Help | **Feedback** | Report a skill the parser missed or misread, or a curriculum match or gap score that looks wrong. Pages that show extraction or matching results link straight to it. |
 
-Switch to dark mode (⋮ menu → Settings → Theme) to see the animated background.
+The app always opens in dark mode over an animated background video, whatever the visitor's system theme.
 
 ## 5-minute demo
 
@@ -37,7 +38,7 @@ Run this on the live site. Numbers refer to the bundled demo data.
 4. **Students → Upskill bridge:** select a few skills, such as SQL and Excel, to see the prioritised learning actions.
 5. **Students → Resume to profile:** upload any text-based resume PDF, review the extracted skills and priorities, then save it as a profile.
 6. **Students → Progress tracking:** choose that profile and mark a skill as Learning or Completed.
-7. **Government → Data ingestion (do this last):** paste a job description and click *Extract & ingest*. The dashboard metrics now reflect that posting. Ingestion replaces the demand baseline for your session, and reloading the page restores the demo data.
+7. **Government → Data ingestion (do this last):** paste a job description and click *Extract & ingest*, or upload `demo_data/sample_job_postings.csv` under *CSV dataset upload*. The dashboard metrics now reflect those postings. Ingestion replaces the demand baseline for your session, and reloading the page restores the demo data.
 
 ## How the scores are calculated
 
@@ -69,8 +70,24 @@ python smoke_test.py
 
 - `data/skill_demand.csv`: demo demand data built from 10 job postings.
 - `data/curriculum_skills_pl300.csv` and `data/curriculum_skills_ms_catalog.csv`: curriculum topics with teaching-depth weights, from the PL-300 syllabus and Microsoft catalog courses.
+- `demo_data/sample_job_postings.csv`: 10 fictional postings, ready to upload in Data ingestion.
 - **Job CSV (Data ingestion):** any columns work. Skills are detected from all the text in each row. `job_id`, `job_title` (or `title`), `company`, and `location` are used when present.
 - **Resume and curriculum PDFs:** text-based PDFs only. Scanned images contain no extractable text.
+
+## Feedback storage
+
+Feedback is always saved in the app's SQLite database, which on the hosted demo resets whenever the app restarts. To keep it permanently, have each report also open an issue on this repo:
+
+1. Create a [fine-grained GitHub token](https://github.com/settings/personal-access-tokens/new) limited to this repository, with **Issues: Read and write** permission.
+2. In Streamlit Community Cloud, open the app's **Settings → Secrets** and add:
+
+   ```toml
+   [github]
+   token = "your-token"
+   repo = "AnishAK47/SkillUpIndia"
+   ```
+
+Reports then appear as issues labelled `feedback`, and the form warns users that submissions are public. Without the secret, the form still works and saves locally.
 
 ## Architecture
 

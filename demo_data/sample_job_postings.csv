@@ -1,0 +1,11 @@
+job_id,job_title,company,location,description
+JOB001,Data Analyst,Contoso Retail,Bengaluru,"Build weekly sales dashboards in Power BI, write SQL against our warehouse, and present findings to category managers. Strong Excel and data cleaning skills required."
+JOB002,Business Intelligence Developer,Fabrikam Finance,Mumbai,"Design Power BI data models, write DAX measures, and implement RLS for regional teams. Experience with Power Query, SQL Server, and data modelling is essential."
+JOB003,Data Engineer,Northwind Traders,Hyderabad,"Own ETL and data pipelines on Azure. Python and SQL daily, data warehousing with dimensional models, Git/GitHub for version control, and data quality checks on every load."
+JOB004,Junior Data Analyst,Tailspin Airlines,Pune,"Support the operations team with reporting in Excel and SQL. Data validation, data visualization, and clear communication with non-technical stakeholders."
+JOB005,Machine Learning Analyst,Woodgrove Bank,Gurugram,"Use Python and statistics to build churn models. Machine learning experience, strong data analysis, and the ability to explain results to business teams."
+JOB006,Analytics Engineer,Adventure Works,Chennai,"Model data in the warehouse with SQL, maintain data pipelines, and publish Looker dashboards. Python scripting and Git/GitHub experience preferred."
+JOB007,Marketing Data Analyst,Wide World Importers,Kolkata,"Marketing analytics for campaigns: data collection, dashboarding in Power BI, and statistics for A/B tests. SQL and Excel required."
+JOB008,Generative AI Data Analyst,Litware Health,Noida,"Evaluate generative AI outputs, run data analysis in Python, and report on quality metrics. Familiarity with REST APIs and data security practices."
+JOB009,Reporting Analyst,Proseware Logistics,Ahmedabad,"Maintain operational reporting in Power BI and Excel, write SQL queries, and ensure data quality across shipment data."
+JOB010,Cloud Data Analyst,Fourth Coffee,Kochi,"Analyse store data on Azure using SQL and Python, build data visualization for leadership, and document data interpretation for each release."
