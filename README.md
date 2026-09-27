@@ -1,5 +1,9 @@
 # SkillUpIndia — FINAL SIH DEMO
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://skillupindia.streamlit.app)
+
+**Live demo:** https://skillupindia.streamlit.app
+
 **Problem:** SIH26134 — Challenges in aligning skill development programs with industry requirements and emerging job-market demands.
 
 ## Final product
