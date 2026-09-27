@@ -51,11 +51,13 @@ _mesh_css = """
     [data-testid="stApp"] { animation: none; }
 }
 
-/* Frosted-glass cards over the drifting mesh: metric tiles plus the two
-   dashboard panels, targeted by their container keys. */
+/* Frosted-glass cards over the drifting mesh: metric tiles, expanders, and
+   the two dashboard panels (targeted by their container keys). */
 [data-testid="stMetric"],
+[data-testid="stExpander"] details,
 .st-key-coverage_card,
-.st-key-action_feed {
+.st-key-action_feed,
+.st-key-pulse_card {
     background: __GLASS__;
     border-color: __EDGE__ !important;
     backdrop-filter: blur(14px) saturate(140%);
@@ -384,17 +386,27 @@ def market_pulse_page():
 
     df_demand = st.session_state.demand.sort_values(by="demand_percentage", ascending=False).head(15)
 
-    fig = px.bar(
-        df_demand,
-        x="skill_normalized",
-        y="demand_percentage",
-        title="Top 15 most demanded skills",
-        labels={"skill_normalized": "Skill", "demand_percentage": "Demand %"},
-        color="demand_percentage",
-        color_continuous_scale="Blues",
-    )
-    fig.update_layout(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=50, l=0, r=0, b=0))
-    st.plotly_chart(fig, width="stretch")
+    with st.container(border=True, key="pulse_card"):
+        st.subheader("Top 15 most demanded skills", icon=":material/leaderboard:")
+        fig = px.bar(
+            df_demand,
+            x="demand_percentage",
+            y="skill_normalized",
+            orientation="h",
+            text="demand_percentage",
+            labels={"skill_normalized": "Skill", "demand_percentage": "Demand %"},
+            color_discrete_sequence=["#818cf8" if _theme_type == "dark" else "#4f46e5"],
+        )
+        fig.update_traces(texttemplate="%{text}%", textposition="outside", cliponaxis=False)
+        fig.update_layout(
+            height=460,
+            margin=dict(t=10, l=0, r=30, b=0),
+            yaxis=dict(title=None, autorange="reversed"),
+            xaxis=dict(title=None, showticklabels=False, showgrid=False),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, width="stretch")
 
     st.dataframe(st.session_state.demand, width="stretch", hide_index=True)
 
@@ -411,7 +423,7 @@ def curriculum_audit_page():
         st.caption("Adjust the threshold to filter for critical curriculum gaps.")
         t = st.slider("Minimum gap score", 0.0, 0.8, 0.12, 0.01)
         alignment_score = max(0, 100 - m["Weighted Gap Score"].mean() * 100)
-        st.metric("Overall alignment score", f"{alignment_score:.1f}%")
+        st.metric("Overall alignment score", f"{alignment_score:.1f}%", icon=":material/verified:", border=True)
 
     f = m[m["Weighted Gap Score"] >= t]
 
@@ -466,7 +478,7 @@ def student_profile_page():
         covered = sum(r.demand_percentage for _, r in st.session_state.demand.iterrows() if str(r.skill_normalized).lower() in known)
         ready = covered / tot * 100 if tot else 0
 
-        st.metric("Demand-weighted readiness", f"{ready:.1f}%")
+        st.metric("Demand-weighted readiness", f"{ready:.1f}%", icon=":material/speed:", border=True)
         st.progress(min(1.0, ready / 100))
 
         st.markdown("#### Recommended learning path")
@@ -522,7 +534,7 @@ def progress_tracking_page():
     completed_pct = (sum(v == "Completed" for v in p.values()) / max(1, len(p))) * 100 if p else 0
 
     st.progress(completed_pct / 100)
-    st.metric("Completion rate", f"{completed_pct:.0f}%")
+    st.metric("Completion rate", f"{completed_pct:.0f}%", icon=":material/task_alt:", border=True)
 
     for s in st.session_state.matrix["Market Skill"].head(15):
         old = existing.get(s, "Not Started")
