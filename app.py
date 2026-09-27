@@ -24,8 +24,10 @@ st.set_page_config(page_title="SkillUpIndia", page_icon=":material/target:", lay
 _theme_type = st.context.theme.type
 if _theme_type == "dark":
     _c1, _c2, _c3 = "rgba(129, 140, 248, 0.22)", "rgba(196, 181, 253, 0.16)", "rgba(34, 211, 238, 0.10)"
+    _glass, _glass_edge = "rgba(21, 19, 40, 0.55)", "rgba(165, 180, 252, 0.14)"
 else:
     _c1, _c2, _c3 = "rgba(79, 70, 229, 0.16)", "rgba(124, 58, 237, 0.12)", "rgba(8, 145, 178, 0.08)"
+    _glass, _glass_edge = "rgba(255, 255, 255, 0.6)", "rgba(79, 70, 229, 0.12)"
 
 _mesh_css = """
 [data-testid="stApp"] {
@@ -46,7 +48,18 @@ _mesh_css = """
 @media (prefers-reduced-motion: reduce) {
     [data-testid="stApp"] { animation: none; }
 }
-""".replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3)
+
+/* Frosted-glass cards over the drifting mesh: metric tiles plus the two
+   dashboard panels, targeted by their container keys. */
+[data-testid="stMetric"],
+.st-key-coverage_card,
+.st-key-action_feed {
+    background: __GLASS__;
+    border-color: __EDGE__ !important;
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+""".replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge)
 
 st.html("<style>" + _mesh_css + """
 .hero {
@@ -130,13 +143,25 @@ st.html("<style>" + _mesh_css + """
     .hero-fx .node, .hero-fx .beam { animation: none; opacity: 0.5; }
 }
 [data-testid="stMetric"] {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-top-color 0.2s ease;
-    border-top: 3px solid transparent !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 [data-testid="stMetric"]:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: 0 14px 25px -10px rgba(124, 58, 237, 0.35);
-    border-top-color: #7c3aed !important;
+}
+.hero .hero-tag {
+    display: inline-block;
+    margin-bottom: 1rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #e0e7ff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+    z-index: 2;
 }
 
 /* Scroll-in reveal: pure progressive enhancement. Browsers without
@@ -204,31 +229,79 @@ def dashboard_page():
                 <span class="beam b2"></span>
                 <span class="beam b3"></span>
             </div>
+            <span class="hero-tag">SIH26134 · Smart India Hackathon</span>
             <h1>SkillUpIndia</h1>
             <p>Real-time skill intelligence & curriculum alignment platform</p>
         </div>'''
     )
 
     m = st.session_state.matrix
+    open_gaps = m[m.Status.isin(["Critical", "High"])]
+    alignment = max(0, 100 - m["Weighted Gap Score"].mean() * 100) if not m.empty else 0
 
     cols = st.columns(4)
     with cols[0]:
-        st.metric("Skills tracked", len(m))
+        st.metric("Skills tracked", len(m), icon=":material/insights:", border=True,
+                  help="Distinct market skills extracted from the analysed job postings.")
     with cols[1]:
-        high_gaps = int(m.Status.isin(["High", "Critical"]).sum())
-        st.metric("High/critical gaps", high_gaps)
+        st.metric("Critical & high gaps", len(open_gaps), icon=":material/warning:", border=True,
+                  help="Skills whose weighted gap score is 0.25 or higher.")
     with cols[2]:
-        top_skill = m.iloc[0]["Market Skill"] if not m.empty else "N/A"
-        st.metric("Top market skill", top_skill)
+        st.metric("Curriculum alignment", f"{alignment:.0f}%", icon=":material/verified:", border=True,
+                  help="100% minus the average weighted gap score across all tracked skills.")
     with cols[3]:
-        st.metric("Active jobs", int(st.session_state.job_count))
+        st.metric("Job postings analysed", int(st.session_state.job_count), icon=":material/work:", border=True,
+                  help="Postings behind the current demand baseline. Update it from Data ingestion.")
 
-    st.header("High-level alignment matrix", icon=":material/grid_view:")
-    st.dataframe(
-        m[["Market Skill", "Industry Demand Weight", "Best Curriculum Match", "Effective Coverage", "Weighted Gap Score", "Status"]],
-        width="stretch",
-        hide_index=True,
-    )
+    chart_col, feed_col = st.columns([7, 3])
+
+    with chart_col, st.container(border=True, key="coverage_card"):
+        st.subheader("Demand vs curriculum coverage", icon=":material/stacked_bar_chart:")
+        top = m.nlargest(10, "Industry Demand Weight")
+        long = top.melt(
+            id_vars="Market Skill",
+            value_vars=["Industry Demand Weight", "Effective Coverage"],
+            var_name="Measure",
+            value_name="Score",
+        )
+        pair = ("#818cf8", "#22d3ee") if _theme_type == "dark" else ("#4f46e5", "#0891b2")
+        fig = px.bar(
+            long, x="Score", y="Market Skill", color="Measure", barmode="group", orientation="h",
+            color_discrete_map={"Industry Demand Weight": pair[0], "Effective Coverage": pair[1]},
+        )
+        fig.update_layout(
+            height=380,
+            margin=dict(t=10, l=0, r=0, b=0),
+            legend=dict(orientation="h", y=1.08, x=0, title=None),
+            yaxis=dict(title=None, autorange="reversed"),
+            xaxis=dict(title=None, range=[0, 1]),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, width="stretch")
+
+    with feed_col, st.container(border=True, key="action_feed"):
+        st.subheader("Action items", icon=":material/task_alt:")
+        badge = {"Critical": ":red-badge[Critical]", "High": ":orange-badge[High]", "Moderate": ":yellow-badge[Moderate]"}
+        items = m[m.Status != "Low"].sort_values("Weighted Gap Score", ascending=False)
+        # Scroll only once the list outgrows the chart beside it; a fixed-height
+        # box around two or three items just reads as empty space.
+        with st.container(height=380 if len(items) > 5 else "content", border=False):
+            if items.empty:
+                st.caption("No open gaps. The curriculum covers current demand.")
+            for _, r in items.iterrows():
+                match = r["Best Curriculum Match"]
+                fix = "Add a module: no curriculum match" if str(match) in ("None", "nan", "") else f"Deepen coverage in {match}"
+                st.markdown(f"{badge[r.Status]} **{r['Market Skill']}**  \n{fix} · gap {r['Weighted Gap Score']:.2f}")
+        covered = int((m.Status == "Low").sum())
+        st.caption(f":material/check_circle: {covered} of {len(m)} skills are well covered.")
+
+    with st.expander("Full alignment matrix", icon=":material/table:"):
+        st.dataframe(
+            m[["Market Skill", "Industry Demand Weight", "Best Curriculum Match", "Effective Coverage", "Weighted Gap Score", "Status"]],
+            width="stretch",
+            hide_index=True,
+        )
 
 
 def market_pulse_page():
@@ -444,21 +517,29 @@ def data_ingestion_page():
 
 
 # 4. Navigation
+# Pages are grouped into the three portals in a top bar rather than st.tabs:
+# each page keeps its own URL and only the active one executes.
 pg = st.navigation(
-    [
-        st.Page(dashboard_page, title="Dashboard", icon=":material/dashboard:", default=True),
-        st.Page(market_pulse_page, title="Market pulse", icon=":material/trending_up:"),
-        st.Page(curriculum_audit_page, title="Curriculum audit", icon=":material/school:"),
-        st.Page(upskill_bridge_page, title="Upskill bridge", icon=":material/route:"),
-        st.Page(student_profile_page, title="Student profile", icon=":material/person:"),
-        st.Page(resume_to_profile_page, title="Resume to profile", icon=":material/description:"),
-        st.Page(progress_tracking_page, title="Progress tracking", icon=":material/bar_chart:"),
-        st.Page(curriculum_upload_page, title="Curriculum upload", icon=":material/upload_file:"),
-        st.Page(data_ingestion_page, title="Data ingestion", icon=":material/bolt:"),
-    ]
+    {
+        "": [
+            st.Page(dashboard_page, title="Dashboard", icon=":material/dashboard:", default=True),
+        ],
+        "Government": [
+            st.Page(market_pulse_page, title="Market pulse", icon=":material/trending_up:", url_path="market-pulse"),
+            st.Page(data_ingestion_page, title="Data ingestion", icon=":material/bolt:", url_path="data-ingestion"),
+        ],
+        "Institutions": [
+            st.Page(curriculum_audit_page, title="Curriculum audit", icon=":material/school:", url_path="curriculum-audit"),
+            st.Page(curriculum_upload_page, title="Curriculum upload", icon=":material/upload_file:", url_path="curriculum-upload"),
+        ],
+        "Students": [
+            st.Page(student_profile_page, title="Student profile", icon=":material/person:", url_path="student-profile"),
+            st.Page(resume_to_profile_page, title="Resume to profile", icon=":material/description:", url_path="resume-to-profile"),
+            st.Page(upskill_bridge_page, title="Upskill bridge", icon=":material/route:", url_path="upskill-bridge"),
+            st.Page(progress_tracking_page, title="Progress tracking", icon=":material/bar_chart:", url_path="progress-tracking"),
+        ],
+    },
+    position="top",
 )
-
-with st.sidebar:
-    st.caption("SIH26134 • Skill intelligence platform")
 
 pg.run()
