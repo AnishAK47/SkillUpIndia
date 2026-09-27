@@ -310,7 +310,7 @@ GAP_COLUMNS = {
         "Demand", min_value=0, max_value=1, format="%.2f",
         help="Share of analysed job postings that ask for this skill."),
     "Best Curriculum Match": st.column_config.TextColumn("Best curriculum match"),
-    "Semantic Similarity": st.column_config.NumberColumn(
+    "Match Score": st.column_config.NumberColumn(
         "Match", format="%.2f",
         help="Match strength to the closest curriculum topic: 1 exact, 0.75 partial, 0 none."),
     "Curriculum Depth Weight": st.column_config.NumberColumn(
@@ -651,7 +651,7 @@ def data_ingestion_page():
 
         desc = st.text_area("Job description", height=200, placeholder="Paste job description here...")
         if st.button("Extract & ingest", type="primary", icon=":material/bolt:"):
-            with st.spinner("Extracting skills via NLP..."):
+            with st.spinner("Matching skills in the job description..."):
                 jobs = ing.from_text(desc, title, company)
 
     with tab2:

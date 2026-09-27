@@ -16,5 +16,5 @@ class SkillGapEngineV2:
             else:curr="None";depth=0;source="N/A"
             cov=sim*depth; gap=max(0,float(d.demand_percentage)/100*(1-cov))
             status="Critical" if gap>=.4 else "High" if gap>=.25 else "Moderate" if gap>=.12 else "Low"
-            out.append({"Market Skill":skill,"Industry Demand Weight":round(float(d.demand_percentage)/100,2),"Best Curriculum Match":curr,"Semantic Similarity":round(sim,2),"Curriculum Depth Weight":round(depth,2),"Effective Coverage":round(cov,2),"Source Framework":source,"Weighted Gap Score":round(gap,2),"Status":status})
+            out.append({"Market Skill":skill,"Industry Demand Weight":round(float(d.demand_percentage)/100,2),"Best Curriculum Match":curr,"Match Score":round(sim,2),"Curriculum Depth Weight":round(depth,2),"Effective Coverage":round(cov,2),"Source Framework":source,"Weighted Gap Score":round(gap,2),"Status":status})
         return pd.DataFrame(out).sort_values("Weighted Gap Score",ascending=False).reset_index(drop=True)
