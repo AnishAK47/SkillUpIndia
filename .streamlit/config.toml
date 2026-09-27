@@ -1,0 +1,65 @@
+[theme]
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&display=swap"
+baseFontSize = 15
+headingFontWeights = [800, 700, 600, 600, 500, 500]
+
+baseRadius = "12px"
+buttonRadius = "10px"
+showWidgetBorder = true
+showSidebarBorder = true
+linkUnderline = false
+
+# Light mode — rich indigo/violet accent on a warm, near-white base.
+[theme.light]
+primaryColor = "#4f46e5"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f4fd"
+textColor = "#1e1b3a"
+borderColor = "#e3e1f5"
+linkColor = "#4f46e5"
+codeBackgroundColor = "#f1f0fb"
+greenColor = "#16a34a"
+redColor = "#dc2626"
+orangeColor = "#d97706"
+blueColor = "#4f46e5"
+violetColor = "#7c3aed"
+grayColor = "#6b6584"
+chartCategoricalColors = ["#4f46e5", "#7c3aed", "#0891b2", "#d97706", "#dc2626", "#16a34a", "#6b6584"]
+chartSequentialColors = ["#f5f3ff", "#ede9fe", "#ddd6fe", "#c4b5fd", "#a78bfa", "#8b5cf6", "#7c3aed", "#6d28d9", "#5b21b6", "#4c1d95"]
+dataframeBorderColor = "#e3e1f5"
+dataframeHeaderBackgroundColor = "#f5f4fd"
+
+# Dark mode — same indigo/violet identity, deepened for a night palette.
+[theme.dark]
+primaryColor = "#818cf8"
+backgroundColor = "#0b0b18"
+secondaryBackgroundColor = "#151328"
+textColor = "#ece9ff"
+borderColor = "#2c2650"
+linkColor = "#a5b4fc"
+codeBackgroundColor = "#1b1836"
+greenColor = "#4ade80"
+redColor = "#f87171"
+orangeColor = "#fbbf24"
+blueColor = "#818cf8"
+violetColor = "#c4b5fd"
+grayColor = "#9691b8"
+chartCategoricalColors = ["#818cf8", "#c4b5fd", "#22d3ee", "#fbbf24", "#f87171", "#4ade80", "#9691b8"]
+chartSequentialColors = ["#1e1b4b", "#312e81", "#4338ca", "#4f46e5", "#6366f1", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff", "#eef2ff"]
+dataframeBorderColor = "#2c2650"
+dataframeHeaderBackgroundColor = "#1b1836"
+
+[theme.light.sidebar]
+backgroundColor = "#1e1b4b"
+secondaryBackgroundColor = "#2c2666"
+textColor = "#ece9ff"
+borderColor = "#2c2666"
+primaryColor = "#818cf8"
+
+[theme.dark.sidebar]
+backgroundColor = "#05050d"
+secondaryBackgroundColor = "#111022"
+textColor = "#ece9ff"
+borderColor = "#1f1c3d"
+primaryColor = "#a5b4fc"
