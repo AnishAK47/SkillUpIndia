@@ -10,7 +10,7 @@ from engine.job_ingestor import JobPostingIngestor
 from engine.resume_parser import ResumeParser
 from engine.gap_engine import SkillGapEngineV2
 from engine.learning_path import LearningPathEngine
-from engine.data_store import SkillUpStore
+from engine.data_store import SkillUpStore, SupabaseStore
 from engine.curriculum_parser import CurriculumPDFParser
 
 # 1. Page configuration
@@ -228,7 +228,65 @@ st.html("""<style>
 # 2. Setup & data loading
 BASE = Path(__file__).parent
 DATA = BASE / "data"
-store = SkillUpStore(str(BASE / "skillupindia.db"))
+
+
+@st.cache_resource
+def get_store():
+    """Supabase when [supabase] secrets are set (data survives restarts), else local SQLite."""
+    try:
+        supabase = st.secrets["supabase"]
+        return SupabaseStore(supabase["url"], supabase["service_role_key"])
+    except (KeyError, FileNotFoundError):
+        return SkillUpStore(str(BASE / "skillupindia.db"))
+
+
+store = get_store()
+
+
+def auth_configured():
+    try:
+        return "auth" in st.secrets
+    except FileNotFoundError:
+        return False
+
+
+def admin_emails():
+    try:
+        return {email.strip().lower() for email in st.secrets["access"]["admins"]}
+    except (KeyError, FileNotFoundError):
+        return set()
+
+
+def current_user():
+    """The signed-in user as a dict, or None.
+
+    Admin requires a verified email on the allowlist: email/password sign-ups
+    can claim any address until it's verified.
+    """
+    if not auth_configured() or not st.user.is_logged_in:
+        return None
+    email = str(st.user.get("email") or "").lower()
+    verified = st.user.get("email_verified") is True
+    return {
+        "id": st.user.get("sub"),
+        "email": email,
+        "name": st.user.get("name") or email,
+        "verified": verified,
+        "admin": verified and email in admin_emails(),
+    }
+
+
+USER = current_user()
+
+
+def sign_in_prompt(action):
+    with st.container(border=True):
+        st.markdown(f":material/lock: **Sign in to {action}.** Browsing doesn't need an account.")
+        if auth_configured():
+            if st.button("Sign in or create an account", icon=":material/login:", key=f"sign_in_{action}"):
+                st.login()
+        else:
+            st.caption("Sign-in isn't set up on this deployment yet.")
 
 # st.video serves the file from a cacheable URL once, instead of re-sending
 # a Base64 copy on every rerun; the CSS above pins it behind the page.
@@ -543,10 +601,16 @@ def student_profile_page():
 
     skills = st.multiselect("Current skills", sorted(st.session_state.demand.skill_normalized.unique()))
 
-    if st.button("Save profile", type="primary", icon=":material/save:") and name:
-        sid = store.add_student(name, role, skills)
-        st.session_state.student = {"id": sid, "name": name, "role": role, "skills": skills}
-        st.toast(f"Profile saved (ID: {sid})", icon=":material/check_circle:")
+    if USER:
+        if st.button("Save profile", type="primary", icon=":material/save:") and name:
+            sid = store.add_student(USER["id"], USER["email"], name, role, skills)
+            st.session_state.student = {"id": sid, "name": name, "role": role, "skills": skills}
+            st.toast(f"Profile saved (ID: {sid})", icon=":material/check_circle:")
+    else:
+        # Signed-out visitors can still preview readiness; only saving needs an account.
+        if st.button("Check readiness", type="primary", icon=":material/speed:") and name:
+            st.session_state.student = {"id": None, "name": name, "role": role, "skills": skills}
+        sign_in_prompt("save this profile and track progress")
 
     if st.session_state.student:
         st.subheader(f"Profile readiness: {st.session_state.student['name']}")
@@ -583,6 +647,9 @@ def resume_to_profile_page():
         st.caption("Note: extraction is based on explicit keywords. Proficiency/experience are not currently inferred.")
 
         st.subheader("Save as profile")
+        if not USER:
+            sign_in_prompt("save this resume as a profile")
+            return
         col1, col2 = st.columns(2)
         with col1:
             name = st.text_input("Name for profile")
@@ -590,20 +657,29 @@ def resume_to_profile_page():
             role = st.selectbox("Target role", ROLE_OPTIONS, key="resume_role")
 
         if st.button("Create profile from resume", type="primary", icon=":material/person_add:") and name:
-            sid = store.add_student(name, role, r["skills"])
+            sid = store.add_student(USER["id"], USER["email"], name, role, r["skills"])
             st.toast(f"Profile created (ID: {sid})", icon=":material/check_circle:")
 
 
 def progress_tracking_page():
     st.header("Progress tracking", icon=":material/bar_chart:")
 
-    ss = store.students()
-    if not ss:
-        st.warning("No student profiles found. Please create one first.", icon=":material/warning:")
+    if not USER:
+        sign_in_prompt("track progress on your saved profiles")
         return
 
-    opts = {f"{x[1]} • {x[2]} (ID {x[0]})": x[0] for x in ss}
-    label = st.selectbox("Select student", list(opts))
+    # Members see only their own profiles; admins see everyone's, labelled by owner.
+    profiles = store.students(None if USER["admin"] else USER["id"])
+    if not profiles:
+        st.info("You haven't saved a profile yet. Create one on the Student profile page.", icon=":material/info:")
+        return
+
+    def profile_label(p):
+        owner = f" · {p['owner_email']}" if USER["admin"] and p.get("owner_email") else ""
+        return f"{p['name']} • {p['target_role']}{owner} (ID {p['id']})"
+
+    opts = {profile_label(p): p["id"] for p in profiles}
+    label = st.selectbox("Select profile" if not USER["admin"] else "Select student", list(opts))
     sid = opts[label]
     existing = dict(store.get_progress(sid))
 
@@ -694,6 +770,10 @@ def feedback_page():
     st.caption(FEEDBACK_AREA_HELP[area])
     page = st.selectbox("Where did it happen?", FEEDBACK_PAGES, key="page", bind="query-params")
 
+    if not USER:
+        sign_in_prompt("send feedback")
+        return
+
     posts_publicly = github_issue_settings() is not None
     with st.form("feedback_form", clear_on_submit=True):
         skill = st.text_input("Skill involved (optional)", placeholder="e.g. Power BI", max_chars=60)
@@ -720,8 +800,9 @@ def feedback_page():
                 f"**What happened**\n\n{details}\n\n**Expected**\n\n{expected or '-'}\n\n"
                 "_Submitted from the SkillUpIndia feedback form._"
             )
+            # The reporter's email is kept in the database only, never in the public issue.
             issue_url = open_github_issue(title, body)
-            store.add_feedback(area, page, skill, details, expected, issue_url)
+            store.add_feedback(area, page, skill, details, expected, issue_url, USER["email"])
             st.session_state.feedback_sent = sent_so_far + 1
             if issue_url:
                 st.success(f"Thanks! Logged as [a GitHub issue]({issue_url}).", icon=":material/check_circle:")
@@ -730,12 +811,23 @@ def feedback_page():
             else:
                 st.success("Thanks! Your feedback has been saved.", icon=":material/check_circle:")
 
+    if not USER["admin"]:
+        return
     rows = store.feedback()
-    with st.expander(f"Submitted feedback ({len(rows)})", icon=":material/inbox:"):
+    with st.expander(f"Feedback inbox ({len(rows)})", icon=":material/inbox:"):
         if rows:
             st.dataframe(
-                pd.DataFrame(rows, columns=["Submitted", "Area", "Page", "Skill", "What happened", "Expected", "Issue"]),
-                column_config={"Issue": st.column_config.LinkColumn("Issue", display_text="Open")},
+                pd.DataFrame(rows),
+                column_config={
+                    "created_at": st.column_config.TextColumn("Submitted"),
+                    "user_email": st.column_config.TextColumn("From"),
+                    "area": st.column_config.TextColumn("Area"),
+                    "page": st.column_config.TextColumn("Page"),
+                    "skill": st.column_config.TextColumn("Skill"),
+                    "details": st.column_config.TextColumn("What happened"),
+                    "expected": st.column_config.TextColumn("Expected"),
+                    "issue_url": st.column_config.LinkColumn("Issue", display_text="Open"),
+                },
                 hide_index=True,
                 width="stretch",
             )
@@ -743,30 +835,64 @@ def feedback_page():
             st.caption("No feedback yet.")
 
 
+def account_page():
+    st.header("Account", icon=":material/account_circle:")
+
+    if USER:
+        with st.container(border=True):
+            st.markdown(f"**{USER['name']}**  \n{USER['email']}")
+            if USER["admin"]:
+                st.badge("Admin", icon=":material/shield_person:", color="violet")
+            else:
+                st.badge("Member", icon=":material/person:", color="blue")
+        if not USER["verified"]:
+            st.warning("Your email isn't verified yet. Use the link in the verification email, then sign in again.", icon=":material/mark_email_unread:")
+        if USER["admin"]:
+            st.caption("As an admin you can use Data ingestion and Curriculum upload, see every student profile, and read the feedback inbox.")
+        else:
+            st.caption("You can save student profiles, track their progress, and send feedback. Your profiles are visible only to you and the admins.")
+        if st.button("Sign out", icon=":material/logout:"):
+            st.logout()
+    elif auth_configured():
+        st.write("Sign in to save student profiles, track progress, and send feedback. Browsing the dashboards doesn't need an account.")
+        if st.button("Sign in or create an account", type="primary", icon=":material/login:"):
+            st.login()
+        st.caption("Continue with Google, or use an email and password.")
+    else:
+        st.info("Sign-in isn't set up on this deployment yet, so profiles, progress, and feedback can't be saved.", icon=":material/info:")
+
+
 # 4. Navigation
 # Pages are grouped into the three portals in a top bar rather than st.tabs:
-# each page keeps its own URL and only the active one executes.
+# each page keeps its own URL and only the active one executes. Admin-only pages
+# are registered only for admins, so other visitors can't reach them by URL.
 FEEDBACK_PAGE = st.Page(feedback_page, title="Feedback", icon=":material/feedback:", url_path="feedback")
+ACCOUNT_PAGE = st.Page(
+    account_page,
+    title=(USER["name"] or "Account").split()[0] if USER else "Sign in",
+    icon=":material/account_circle:" if USER else ":material/login:",
+    url_path="account",
+)
+government = [st.Page(market_pulse_page, title="Market pulse", icon=":material/trending_up:", url_path="market-pulse")]
+institutions = [st.Page(curriculum_audit_page, title="Curriculum audit", icon=":material/school:", url_path="curriculum-audit")]
+if USER and USER["admin"]:
+    government.append(st.Page(data_ingestion_page, title="Data ingestion", icon=":material/bolt:", url_path="data-ingestion"))
+    institutions.append(st.Page(curriculum_upload_page, title="Curriculum upload", icon=":material/upload_file:", url_path="curriculum-upload"))
+
 pg = st.navigation(
     {
         "": [
             st.Page(dashboard_page, title="Dashboard", icon=":material/dashboard:", default=True),
         ],
-        "Government": [
-            st.Page(market_pulse_page, title="Market pulse", icon=":material/trending_up:", url_path="market-pulse"),
-            st.Page(data_ingestion_page, title="Data ingestion", icon=":material/bolt:", url_path="data-ingestion"),
-        ],
-        "Institutions": [
-            st.Page(curriculum_audit_page, title="Curriculum audit", icon=":material/school:", url_path="curriculum-audit"),
-            st.Page(curriculum_upload_page, title="Curriculum upload", icon=":material/upload_file:", url_path="curriculum-upload"),
-        ],
+        "Government": government,
+        "Institutions": institutions,
         "Students": [
             st.Page(student_profile_page, title="Student profile", icon=":material/person:", url_path="student-profile"),
             st.Page(resume_to_profile_page, title="Resume to profile", icon=":material/description:", url_path="resume-to-profile"),
             st.Page(upskill_bridge_page, title="Upskill bridge", icon=":material/route:", url_path="upskill-bridge"),
             st.Page(progress_tracking_page, title="Progress tracking", icon=":material/bar_chart:", url_path="progress-tracking"),
         ],
-        "Help": [FEEDBACK_PAGE],
+        "Account": [ACCOUNT_PAGE, FEEDBACK_PAGE],
     },
     position="top",
 )
