@@ -275,7 +275,8 @@ store = SkillUpStore(str(BASE / "skillupindia.db"))
 # a Base64 copy on every rerun; the CSS above pins it behind the page.
 if _theme_type == "dark":
     with st.container(key="bg_video"):
-        st.video(str(BASE / "assets" / "skillup_bg.mp4"), autoplay=True, loop=True, muted=True)
+        # Crossfaded to loop seamlessly; regenerate with scripts/make_bg_loop.py.
+        st.video(str(BASE / "assets" / "skillup_bg_loop.mp4"), autoplay=True, loop=True, muted=True)
         # st.video has no playsinline option, and iPhones won't autoplay inline
         # without it. The pause listener resumes playback if a rerun pauses the
         # video while the page is visible; the retries cover late mounting.
