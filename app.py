@@ -25,13 +25,60 @@ if _theme_type == "dark":
     _glass, _glass_edge = "rgba(21, 19, 40, 0.55)", "rgba(165, 180, 252, 0.14)"
     _drop, _drop_hover = "rgba(165, 180, 252, 0.35)", "#818cf8"
     _bar = "rgba(11, 11, 24, 0.72)"
+    _hero = "rgba(15, 13, 32, 0.42)"
 else:
     _c1, _c2, _c3 = "rgba(79, 70, 229, 0.16)", "rgba(124, 58, 237, 0.12)", "rgba(8, 145, 178, 0.08)"
     _glass, _glass_edge = "rgba(255, 255, 255, 0.6)", "rgba(79, 70, 229, 0.12)"
     _drop, _drop_hover = "rgba(79, 70, 229, 0.3)", "#4f46e5"
     _bar = "rgba(255, 255, 255, 0.72)"
+    _hero = "linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #312e81 100%)"
 
-_mesh_css = """
+# Dark mode uses the looping brand video as the page background (rendered
+# below with st.video); light mode keeps the drifting gradient mesh, since a
+# dark video under dark body text would be unreadable.
+if _theme_type == "dark":
+    _bg_css = """
+[data-testid="stApp"] {
+    background: transparent;
+}
+/* The keyed container is pinned behind all content; its tint keeps text and
+   charts readable over the brightest frames. Its own fill shows if the video
+   is hidden for reduced motion. */
+[data-testid="stLayoutWrapper"]:has(> .st-key-bg_video) {
+    position: absolute;
+}
+.st-key-bg_video {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #0b0b18;
+}
+.st-key-bg_video video {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+}
+.st-key-bg_video::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 11, 24, 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+    .st-key-bg_video video { display: none; }
+}
+/* The hero becomes a glass panel so the video reads through it. */
+.hero {
+    border: 1px solid rgba(165, 180, 252, 0.16);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+"""
+else:
+    _bg_css = """
 [data-testid="stApp"] {
     background-image:
         radial-gradient(circle, __C1__, transparent 60%),
@@ -50,6 +97,9 @@ _mesh_css = """
 @media (prefers-reduced-motion: reduce) {
     [data-testid="stApp"] { animation: none; }
 }
+"""
+
+_mesh_css = (_bg_css + """
 
 /* Frosted-glass cards over the drifting mesh: metric tiles, expanders, and
    the two dashboard panels (targeted by their container keys). */
@@ -84,7 +134,10 @@ _mesh_css = """
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border-bottom: 1px solid __EDGE__;
 }
-""".replace("__BAR__", _bar).replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
+.hero {
+    background: __HERO__;
+}
+""").replace("__HERO__", _hero).replace("__BAR__", _bar).replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
 
 st.html("<style>" + _mesh_css + """
 /* Start content just below the 3.75rem header instead of 7.5rem down.
@@ -96,7 +149,6 @@ st.html("<style>" + _mesh_css + """
 .hero {
     padding: 3rem;
     border-radius: 20px;
-    background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #312e81 100%);
     color: white;
     margin-bottom: 2rem;
     box-shadow:
@@ -129,52 +181,6 @@ st.html("<style>" + _mesh_css + """
     z-index: 2;
 }
 
-/* CSS stand-in for the neural-node / fiber-optic hero video: glowing nodes in
-   cyan/saffron/magenta with light pulses traveling along thin beam lines.
-   Pure CSS so it costs nothing and needs no GPU/video pipeline; swap the
-   .hero markup for a real video element later if/when the generated clip is ready. */
-.hero-fx {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: 0;
-}
-.hero-fx .node {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    animation: skillup-node-pulse 3.6s ease-in-out infinite;
-}
-.hero-fx .n1 { top: 18%; left: 10%; background: #00c2ff; box-shadow: 0 0 18px 4px rgba(0, 194, 255, 0.7); animation-delay: 0s; }
-.hero-fx .n2 { top: 66%; left: 20%; background: #ea580c; box-shadow: 0 0 18px 4px rgba(234, 88, 12, 0.65); animation-delay: 0.6s; }
-.hero-fx .n3 { top: 32%; left: 46%; background: #e879f9; box-shadow: 0 0 16px 4px rgba(232, 121, 249, 0.55); animation-delay: 1.2s; }
-.hero-fx .n4 { top: 76%; left: 60%; background: #00c2ff; box-shadow: 0 0 18px 4px rgba(0, 194, 255, 0.6); animation-delay: 1.8s; }
-.hero-fx .n5 { top: 20%; left: 80%; background: #ea580c; box-shadow: 0 0 16px 4px rgba(234, 88, 12, 0.55); animation-delay: 2.4s; }
-.hero-fx .beam {
-    position: absolute;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(0, 194, 255, 0.9), transparent);
-    background-size: 220% 100%;
-    animation: skillup-beam-travel 4.5s linear infinite;
-}
-.hero-fx .b1 { top: 22%; left: 8%; width: 42%; transform: rotate(7deg); animation-delay: 0s; }
-.hero-fx .b2 { top: 60%; left: 18%; width: 46%; transform: rotate(-6deg); background: linear-gradient(90deg, transparent, rgba(234, 88, 12, 0.85), transparent); background-size: 220% 100%; animation-delay: 1.5s; }
-.hero-fx .b3 { top: 42%; left: 44%; width: 38%; transform: rotate(4deg); background: linear-gradient(90deg, transparent, rgba(232, 121, 249, 0.8), transparent); background-size: 220% 100%; animation-delay: 3s; }
-@keyframes skillup-node-pulse {
-    0%, 100% { opacity: 0.35; transform: scale(0.85); }
-    50% { opacity: 1; transform: scale(1.15); }
-}
-@keyframes skillup-beam-travel {
-    0% { background-position: 220% 0; opacity: 0; }
-    12% { opacity: 1; }
-    88% { opacity: 1; }
-    100% { background-position: -220% 0; opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-    .hero-fx .node, .hero-fx .beam { animation: none; opacity: 0.5; }
-}
 [data-testid="stMetric"] {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -264,6 +270,35 @@ st.html("<style>" + _mesh_css + """
 BASE = Path(__file__).parent
 DATA = BASE / "data"
 store = SkillUpStore(str(BASE / "skillupindia.db"))
+
+# st.video serves the file from a cacheable URL once, instead of re-sending
+# a Base64 copy on every rerun; the CSS above pins it behind the page.
+if _theme_type == "dark":
+    with st.container(key="bg_video"):
+        st.video(str(BASE / "assets" / "skillup_bg.mp4"), autoplay=True, loop=True, muted=True)
+        # st.video has no playsinline option, and iPhones won't autoplay inline
+        # without it. The pause listener resumes playback if a rerun pauses the
+        # video while the page is visible; the retries cover late mounting.
+        st.html(
+            """<script>
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const fixBg = () => document.querySelectorAll(".st-key-bg_video video").forEach((v) => {
+                v.muted = true;
+                v.playsInline = true;
+                v.setAttribute("playsinline", "");
+                v.controls = false;
+                if (reduceMotion) { v.pause(); return; }
+                if (!v.dataset.keepAlive) {
+                    v.dataset.keepAlive = "1";
+                    v.addEventListener("pause", () => { if (!document.hidden) v.play().catch(() => {}); });
+                }
+                if (v.paused && !document.hidden) v.play().catch(() => {});
+            });
+            [0, 500, 2000].forEach((ms) => setTimeout(fixBg, ms));
+            document.addEventListener("visibilitychange", fixBg);
+            </script>""",
+            unsafe_allow_javascript=True,
+        )
 ROLE_OPTIONS = ["Data Analyst", "Business Analyst", "Data Engineer", "Power BI Developer"]
 
 # st.dataframe paints cells on a canvas, so CSS can't reach them: column_config
@@ -332,16 +367,6 @@ if "job_count" not in st.session_state:
 def dashboard_page():
     st.html(
         '''<div class="hero">
-            <div class="hero-fx" aria-hidden="true">
-                <span class="node n1"></span>
-                <span class="node n2"></span>
-                <span class="node n3"></span>
-                <span class="node n4"></span>
-                <span class="node n5"></span>
-                <span class="beam b1"></span>
-                <span class="beam b2"></span>
-                <span class="beam b3"></span>
-            </div>
             <span class="hero-tag">SIH26134 · Smart India Hackathon</span>
             <h1>SkillUpIndia</h1>
             <p>Real-time skill intelligence & curriculum alignment platform</p>
