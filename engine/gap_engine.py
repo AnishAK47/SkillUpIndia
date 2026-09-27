@@ -12,7 +12,7 @@ class SkillGapEngineV2:
                 if score>best[0]:best=(score,i,r)
             sim,i,r=best
             if sim>=self.match_threshold:
-                curr=str(r.Skill); depth=float(r.DepthWeight); source=str(r.get("Course",r.get("source","Curriculum")))
+                curr=str(r.Skill); depth=float(r.DepthWeight); course=r.get("Course"); source=str(course) if pd.notna(course) else str(r.get("source","Curriculum"))
             else:curr="None";depth=0;source="N/A"
             cov=sim*depth; gap=max(0,float(d.demand_percentage)/100*(1-cov))
             status="Critical" if gap>=.4 else "High" if gap>=.25 else "Moderate" if gap>=.12 else "Low"

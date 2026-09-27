@@ -266,6 +266,44 @@ DATA = BASE / "data"
 store = SkillUpStore(str(BASE / "skillupindia.db"))
 ROLE_OPTIONS = ["Data Analyst", "Business Analyst", "Data Engineer", "Power BI Developer"]
 
+# st.dataframe paints cells on a canvas, so CSS can't reach them: column_config
+# is the styling hook. Demand/coverage bars reuse the dashboard chart colours.
+GAP_COLUMNS = {
+    "Market Skill": st.column_config.TextColumn("Skill", pinned=True),
+    "Industry Demand Weight": st.column_config.ProgressColumn(
+        "Demand", min_value=0, max_value=1, format="%.2f",
+        help="Share of analysed job postings that ask for this skill."),
+    "Best Curriculum Match": st.column_config.TextColumn("Best curriculum match"),
+    "Semantic Similarity": st.column_config.NumberColumn(
+        "Match", format="%.2f",
+        help="Match strength to the closest curriculum topic: 1 exact, 0.75 partial, 0 none."),
+    "Curriculum Depth Weight": st.column_config.NumberColumn(
+        "Depth", format="%.2f", help="How deeply the matched topic is taught."),
+    "Effective Coverage": st.column_config.ProgressColumn(
+        "Coverage", min_value=0, max_value=1, format="%.2f",
+        color="#22d3ee" if _theme_type == "dark" else "#0891b2",
+        help="Match x depth: how well the curriculum covers this skill."),
+    "Source Framework": st.column_config.TextColumn("Source"),
+    "Weighted Gap Score": st.column_config.NumberColumn(
+        "Gap score", format="%.2f",
+        help="Demand x (1 - coverage). 0.12+ Moderate, 0.25+ High, 0.40+ Critical."),
+    "Status": st.column_config.TextColumn("Status"),
+}
+_STATUS_COLORS = (
+    {"Critical": "#f87171", "High": "#fb923c", "Moderate": "#fbbf24", "Low": "#4ade80"}
+    if _theme_type == "dark"
+    else {"Critical": "#dc2626", "High": "#c2410c", "Moderate": "#a16207", "Low": "#15803d"}
+)
+
+
+def gap_table(df):
+    st.dataframe(
+        df.style.map(lambda s: f"color: {_STATUS_COLORS.get(s, 'inherit')}; font-weight: 600", subset=["Status"]),
+        column_config=GAP_COLUMNS,
+        hide_index=True,
+        width="stretch",
+    )
+
 
 @st.cache_data
 def load_base_data():
@@ -347,7 +385,7 @@ def dashboard_page():
         )
         fig.update_layout(
             height=380,
-            margin=dict(t=10, l=0, r=0, b=0),
+            margin=dict(t=10, l=16, r=0, b=0),
             legend=dict(orientation="h", y=1.08, x=1, xanchor="right", title=None),
             yaxis=dict(title=None, autorange="reversed"),
             xaxis=dict(title=None, range=[0, 1]),
@@ -373,11 +411,7 @@ def dashboard_page():
         st.caption(f":material/check_circle: {covered} of {len(m)} skills are well covered.")
 
     with st.expander("Full alignment matrix", icon=":material/table:"):
-        st.dataframe(
-            m[["Market Skill", "Industry Demand Weight", "Best Curriculum Match", "Effective Coverage", "Weighted Gap Score", "Status"]],
-            width="stretch",
-            hide_index=True,
-        )
+        gap_table(m[["Market Skill", "Industry Demand Weight", "Best Curriculum Match", "Effective Coverage", "Weighted Gap Score", "Status"]])
 
 
 def market_pulse_page():
@@ -400,7 +434,7 @@ def market_pulse_page():
         fig.update_traces(texttemplate="%{text}%", textposition="outside", cliponaxis=False)
         fig.update_layout(
             height=460,
-            margin=dict(t=10, l=0, r=30, b=0),
+            margin=dict(t=10, l=16, r=30, b=0),
             yaxis=dict(title=None, autorange="reversed"),
             xaxis=dict(title=None, showticklabels=False, showgrid=False),
             plot_bgcolor="rgba(0,0,0,0)",
@@ -408,7 +442,18 @@ def market_pulse_page():
         )
         st.plotly_chart(fig, width="stretch")
 
-    st.dataframe(st.session_state.demand, width="stretch", hide_index=True)
+    st.dataframe(
+        st.session_state.demand,
+        column_config={
+            "skill_normalized": st.column_config.TextColumn("Skill"),
+            "job_count": st.column_config.NumberColumn("Postings", help="Job postings that mention this skill."),
+            "demand_percentage": st.column_config.ProgressColumn(
+                "Demand", min_value=0, max_value=100, format="%d%%",
+                help="Share of analysed job postings that ask for this skill."),
+        },
+        width="stretch",
+        hide_index=True,
+    )
 
     csv = st.session_state.demand.to_csv(index=False).encode("utf-8")
     st.download_button("Download demand CSV", csv, "skill_demand.csv", "text/csv", icon=":material/download:")
@@ -428,7 +473,7 @@ def curriculum_audit_page():
     f = m[m["Weighted Gap Score"] >= t]
 
     st.subheader("Gap analysis matrix")
-    st.dataframe(f, width="stretch", hide_index=True)
+    gap_table(f)
     csv = f.to_csv(index=False).encode("utf-8")
     st.download_button("Export audit report", csv, "curriculum_audit.csv", "text/csv", icon=":material/download:")
 
@@ -560,7 +605,7 @@ def curriculum_upload_page():
             c = pd.DataFrame({"Skill": skills, "DepthWeight": [0.65] * len(skills), "source": ["Uploaded Curriculum"] * len(skills)})
             m = SkillGapEngineV2().run(st.session_state.demand, c)
             st.subheader("Real-time gap analysis")
-            st.dataframe(m, width="stretch", hide_index=True)
+            gap_table(m)
 
 
 def data_ingestion_page():
