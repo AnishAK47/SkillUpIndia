@@ -24,10 +24,12 @@ if _theme_type == "dark":
     _c1, _c2, _c3 = "rgba(129, 140, 248, 0.22)", "rgba(196, 181, 253, 0.16)", "rgba(34, 211, 238, 0.10)"
     _glass, _glass_edge = "rgba(21, 19, 40, 0.55)", "rgba(165, 180, 252, 0.14)"
     _drop, _drop_hover = "rgba(165, 180, 252, 0.35)", "#818cf8"
+    _bar = "rgba(11, 11, 24, 0.72)"
 else:
     _c1, _c2, _c3 = "rgba(79, 70, 229, 0.16)", "rgba(124, 58, 237, 0.12)", "rgba(8, 145, 178, 0.08)"
     _glass, _glass_edge = "rgba(255, 255, 255, 0.6)", "rgba(79, 70, 229, 0.12)"
     _drop, _drop_hover = "rgba(79, 70, 229, 0.3)", "#4f46e5"
+    _bar = "rgba(255, 255, 255, 0.72)"
 
 _mesh_css = """
 [data-testid="stApp"] {
@@ -71,16 +73,33 @@ _mesh_css = """
 [data-testid="stFileUploaderDropzone"]:hover {
     border-color: __DROPHOVER__;
 }
-""".replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
+
+/* Frosted top bar: the header also holds the top navigation and the theme
+   menu, so it is restyled rather than hidden; content scrolls under glass. */
+[data-testid="stHeader"] {
+    background: __BAR__;
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-bottom: 1px solid __EDGE__;
+}
+""".replace("__BAR__", _bar).replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
 
 st.html("<style>" + _mesh_css + """
+/* Start content just below the 3.75rem header instead of 7.5rem down.
+   Side gutters are left at Streamlit's defaults for readable line lengths. */
+[data-testid="stMainBlockContainer"] {
+    padding-top: 5rem;
+    padding-bottom: 3rem;
+}
 .hero {
     padding: 3rem;
     border-radius: 20px;
     background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 55%, #312e81 100%);
     color: white;
     margin-bottom: 2rem;
-    box-shadow: 0 20px 40px -12px rgba(76, 29, 149, 0.35);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        0 20px 40px -12px rgba(76, 29, 149, 0.35);
     position: relative;
     overflow: hidden;
 }
@@ -318,15 +337,16 @@ def dashboard_page():
             var_name="Measure",
             value_name="Score",
         )
+        long["Measure"] = long["Measure"].map({"Industry Demand Weight": "Demand", "Effective Coverage": "Coverage"})
         pair = ("#818cf8", "#22d3ee") if _theme_type == "dark" else ("#4f46e5", "#0891b2")
         fig = px.bar(
             long, x="Score", y="Market Skill", color="Measure", barmode="group", orientation="h",
-            color_discrete_map={"Industry Demand Weight": pair[0], "Effective Coverage": pair[1]},
+            color_discrete_map={"Demand": pair[0], "Coverage": pair[1]},
         )
         fig.update_layout(
             height=380,
             margin=dict(t=10, l=0, r=0, b=0),
-            legend=dict(orientation="h", y=1.08, x=0, title=None),
+            legend=dict(orientation="h", y=1.08, x=1, xanchor="right", title=None),
             yaxis=dict(title=None, autorange="reversed"),
             xaxis=dict(title=None, range=[0, 1]),
             plot_bgcolor="rgba(0,0,0,0)",
