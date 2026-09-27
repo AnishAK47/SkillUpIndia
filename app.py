@@ -14,20 +14,20 @@ from engine.curriculum_parser import CurriculumPDFParser
 # they stay consistent across every native widget and survive Streamlit upgrades.
 st.set_page_config(page_title="SkillUpIndia", page_icon=":material/target:", layout="wide", initial_sidebar_state="expanded")
 
-# A slow-drifting gradient-mesh background, tinted to match whichever theme
-# (light/dark/system) is actually active right now. Combined with the hero
-# banner, metric-card hover polish, and scroll-in motion into ONE st.html
-# call below: Streamlit only renders the first style-only st.html element
-# per rerun, so a second standalone <style>-only call gets silently dropped.
-# Dark mode itself is native: users switch it from the app's Settings menu
-# (top-right kebab menu -> Settings -> Theme), no custom toggle needed.
+# Theme-aware custom CSS, tinted to match whichever theme (light/dark/system)
+# is active. Dark mode itself is native: users switch it from the app's
+# Settings menu (top-right kebab menu -> Settings -> Theme).
+# Never write a literal HTML tag (even inside a /* comment */) in this CSS:
+# st.html's sanitizer doesn't understand CSS context and drops the whole block.
 _theme_type = st.context.theme.type
 if _theme_type == "dark":
     _c1, _c2, _c3 = "rgba(129, 140, 248, 0.22)", "rgba(196, 181, 253, 0.16)", "rgba(34, 211, 238, 0.10)"
     _glass, _glass_edge = "rgba(21, 19, 40, 0.55)", "rgba(165, 180, 252, 0.14)"
+    _drop, _drop_hover = "rgba(165, 180, 252, 0.35)", "#818cf8"
 else:
     _c1, _c2, _c3 = "rgba(79, 70, 229, 0.16)", "rgba(124, 58, 237, 0.12)", "rgba(8, 145, 178, 0.08)"
     _glass, _glass_edge = "rgba(255, 255, 255, 0.6)", "rgba(79, 70, 229, 0.12)"
+    _drop, _drop_hover = "rgba(79, 70, 229, 0.3)", "#4f46e5"
 
 _mesh_css = """
 [data-testid="stApp"] {
@@ -59,7 +59,19 @@ _mesh_css = """
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
-""".replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge)
+
+/* A dashed, glassy dropzone reads as a drop target rather than a flat box. */
+[data-testid="stFileUploaderDropzone"] {
+    background: __GLASS__;
+    border: 1.5px dashed __DROP__;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    transition: border-color 0.2s ease;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: __DROPHOVER__;
+}
+""".replace("__C1__", _c1).replace("__C2__", _c2).replace("__C3__", _c3).replace("__GLASS__", _glass).replace("__EDGE__", _glass_edge).replace("__DROPHOVER__", _drop_hover).replace("__DROP__", _drop)
 
 st.html("<style>" + _mesh_css + """
 .hero {
@@ -148,6 +160,48 @@ st.html("<style>" + _mesh_css + """
 [data-testid="stMetric"]:hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 25px -10px rgba(124, 58, 237, 0.35);
+}
+
+/* Primary actions get a saffron accent, kept apart from the indigo brand
+   colour that marks state (focus, sliders, links). The deep end of the
+   gradient keeps white label text above 4.5:1 contrast in both themes. */
+[data-testid="stBaseButton-primary"],
+[data-testid="stBaseButton-primaryFormSubmit"] {
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+[data-testid="stBaseButton-primary"]:hover,
+[data-testid="stBaseButton-primaryFormSubmit"]:hover {
+    background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+    border: none;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px -6px rgba(234, 88, 12, 0.55);
+}
+[data-testid="stBaseButton-primary"]:active,
+[data-testid="stBaseButton-primaryFormSubmit"]:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px -2px rgba(234, 88, 12, 0.4);
+}
+[data-testid="stBaseButton-primary"]:focus-visible,
+[data-testid="stBaseButton-primaryFormSubmit"]:focus-visible {
+    outline: 2px solid #fb923c;
+    outline-offset: 2px;
+}
+[data-testid="stBaseButton-primary"]:disabled,
+[data-testid="stBaseButton-primaryFormSubmit"]:disabled {
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    [data-testid="stBaseButton-primary"],
+    [data-testid="stBaseButton-primaryFormSubmit"] { transition: none; }
+    [data-testid="stBaseButton-primary"]:hover,
+    [data-testid="stBaseButton-primaryFormSubmit"]:hover { transform: none; }
 }
 .hero .hero-tag {
     display: inline-block;
