@@ -57,6 +57,9 @@ def seeded_profiles():
 def run_app(monkeypatch, claims, url_path=None, auth=True):
     monkeypatch.setattr(streamlit, "user", FakeUser(claims))
     at = AppTest.from_file(APP, default_timeout=60)
+    # AppTest only swaps out st.secrets when given at least one secret; otherwise the
+    # app would read the developer's real .streamlit/secrets.toml.
+    at.secrets["tests"] = {"isolated": True}
     if auth:
         at.secrets["auth"] = {
             "redirect_uri": "http://localhost:8501/oauth2callback",

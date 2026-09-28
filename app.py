@@ -71,11 +71,19 @@ st.html("""<style>
 [data-testid="stExpander"] details,
 .st-key-coverage_card,
 .st-key-action_feed,
-.st-key-pulse_card {
+.st-key-pulse_card,
+.st-key-account_card {
     background: rgba(21, 19, 40, 0.55);
     border-color: rgba(165, 180, 252, 0.14) !important;
     backdrop-filter: blur(14px) saturate(140%);
     -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.st-key-account_card {
+    padding: 1.5rem;
+}
+.st-key-account_card img {
+    border-radius: 50%;
 }
 
 /* A dashed, glassy dropzone reads as a drop target rather than a flat box. */
@@ -271,6 +279,7 @@ def current_user():
         "id": st.user.get("sub"),
         "email": email,
         "name": st.user.get("name") or email,
+        "picture": st.user.get("picture"),
         "verified": verified,
         "admin": verified and email in admin_emails(),
     }
@@ -836,30 +845,35 @@ def feedback_page():
 
 
 def account_page():
-    st.header("Account", icon=":material/account_circle:")
-
-    if USER:
-        with st.container(border=True):
-            st.markdown(f"**{USER['name']}**  \n{USER['email']}")
-            if USER["admin"]:
-                st.badge("Admin", icon=":material/shield_person:", color="violet")
+    st.space("medium")
+    with st.container(horizontal_alignment="center"):
+        with st.container(border=True, width=440, key="account_card", horizontal_alignment="center", gap="medium"):
+            if USER:
+                if USER["picture"]:
+                    st.image(USER["picture"], width=80)
+                st.subheader(USER["name"], text_alignment="center")
+                st.caption(USER["email"], text_alignment="center")
+                if USER["admin"]:
+                    st.badge("Admin", icon=":material/shield_person:", color="violet")
+                else:
+                    st.badge("Member", icon=":material/person:", color="blue")
+                if not USER["verified"]:
+                    st.warning("Your email isn't verified yet. Use the link in the verification email, then sign in again.", icon=":material/mark_email_unread:")
+                if USER["admin"]:
+                    st.caption("You can use Data ingestion and Curriculum upload, see every student profile, and read the feedback inbox.", text_alignment="center")
+                else:
+                    st.caption("You can save student profiles, track their progress, and send feedback. Your profiles are visible only to you and the admins.", text_alignment="center")
+                if st.button("Sign out", icon=":material/logout:", width="stretch"):
+                    st.logout()
+            elif auth_configured():
+                st.subheader("Welcome to SkillUpIndia", text_alignment="center")
+                st.caption("Sign in to save student profiles, track progress, and send feedback. Browsing the dashboards doesn't need an account.", text_alignment="center")
+                if st.button("Sign in or create an account", type="primary", icon=":material/login:", width="stretch"):
+                    st.login()
+                st.caption("Continue with Google, or use an email and password.", text_alignment="center")
             else:
-                st.badge("Member", icon=":material/person:", color="blue")
-        if not USER["verified"]:
-            st.warning("Your email isn't verified yet. Use the link in the verification email, then sign in again.", icon=":material/mark_email_unread:")
-        if USER["admin"]:
-            st.caption("As an admin you can use Data ingestion and Curriculum upload, see every student profile, and read the feedback inbox.")
-        else:
-            st.caption("You can save student profiles, track their progress, and send feedback. Your profiles are visible only to you and the admins.")
-        if st.button("Sign out", icon=":material/logout:"):
-            st.logout()
-    elif auth_configured():
-        st.write("Sign in to save student profiles, track progress, and send feedback. Browsing the dashboards doesn't need an account.")
-        if st.button("Sign in or create an account", type="primary", icon=":material/login:"):
-            st.login()
-        st.caption("Continue with Google, or use an email and password.")
-    else:
-        st.info("Sign-in isn't set up on this deployment yet, so profiles, progress, and feedback can't be saved.", icon=":material/info:")
+                st.subheader("Accounts", text_alignment="center")
+                st.caption("Sign-in isn't set up on this deployment yet, so profiles, progress, and feedback can't be saved.", text_alignment="center")
 
 
 # 4. Navigation

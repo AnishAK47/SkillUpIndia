@@ -13,3 +13,4 @@ output/
 .claude/
 .agents/
 .streamlit/secrets.toml
+.env
