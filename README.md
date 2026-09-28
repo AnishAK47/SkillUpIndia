@@ -49,7 +49,7 @@ Without this setup the app still runs: every page can be browsed, but nothing ca
 2. Go to **Applications → Create Application** and choose **Regular Web Applications**.
 3. In the application's **Settings**, set:
    - **Allowed Callback URLs:** `https://skillupindia.streamlit.app/oauth2callback, http://localhost:8501/oauth2callback`
-   - **Allowed Logout URLs:** `https://skillupindia.streamlit.app, http://localhost:8501`
+   - **Allowed Logout URLs:** `https://skillupindia.streamlit.app/oauth2callback, http://localhost:8501/oauth2callback` (Streamlit's sign-out returns to the callback address, so it must be listed here too)
 4. In the application's **Connections** tab, enable **Username-Password-Authentication** (email and password) and **google-oauth2** (Google). Auth0's built-in Google keys are fine for testing; add your own Google OAuth client in **Authentication → Social** before real use.
 5. Copy the **Domain**, **Client ID**, and **Client Secret**.
 
