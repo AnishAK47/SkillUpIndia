@@ -874,6 +874,75 @@ def account_page():
             else:
                 st.subheader("Accounts", text_alignment="center")
                 st.caption("Sign-in isn't set up on this deployment yet, so profiles, progress, and feedback can't be saved.", text_alignment="center")
+        with st.container(horizontal=True, horizontal_alignment="center"):
+            st.page_link(TERMS_PAGE, label="Terms of service", icon=":material/gavel:")
+            st.page_link(PRIVACY_PAGE, label="Privacy policy", icon=":material/policy:")
+
+
+def legal_page(title, icon, body):
+    with st.container(horizontal_alignment="center"):
+        with st.container(width=760):
+            st.header(title, icon=icon)
+            st.caption("Last updated: 28 September 2026")
+            st.markdown(body)
+
+
+PRIVACY_POLICY = """
+SkillUpIndia is a prototype built for the Smart India Hackathon (problem statement SIH26134). This page explains what it collects and why.
+
+#### Without an account
+You can browse every public page, check readiness, and try resume or job-description parsing without signing in. Files and text you upload are read in memory to produce the results on screen and are not stored.
+
+#### When you sign in
+Sign-in is handled by **Auth0**, either with Google or with an email and password. The app never sees or stores your password. From Auth0 it receives your **name, email address, whether the email is verified, profile picture link, and an account ID**, and keeps a signed cookie in your browser so you stay signed in.
+
+#### What we store
+- **Student profiles** you save: the name you enter, target role, and skills, linked to your account ID and email.
+- **Progress** you mark on those profiles.
+- **Feedback** you send: what you wrote, the page and skill it concerns, and your email.
+
+#### Who can see it
+Your profiles and progress are visible only to you and to the project's admins. Feedback is visible to the admins. If feedback is set up to create GitHub issues, the text of your report is posted publicly on the project's GitHub repository, **without your email**.
+
+#### Services we use
+- **Streamlit Community Cloud** hosts the app.
+- **Auth0** handles sign-in, and **Google** does too if you choose "Continue with Google".
+- **Supabase** stores profiles, progress, and feedback.
+- **GitHub** receives feedback reports, if that option is enabled.
+
+Each follows its own privacy policy. We don't sell your data, show ads, or use it for anything other than running these features.
+
+#### Keeping or deleting your data
+Data is kept until you ask us to delete it. To request deletion or a copy of your data, sign in and send it through the **Feedback** page under "Something else".
+
+#### Changes
+If this policy changes, the date at the top will change with it.
+"""
+
+TERMS_OF_SERVICE = """
+SkillUpIndia is a prototype built for the Smart India Hackathon (problem statement SIH26134). By using it, you agree to these terms.
+
+#### What it is
+The app estimates how well curricula cover the skills employers ask for, based on a small demonstration dataset and keyword matching. Readiness and gap scores are **decision-support estimates, not hiring predictions or professional advice**.
+
+#### Your account
+You're responsible for activity on your account. Admin access is granted only by the project team.
+
+#### Acceptable use
+Don't upload other people's personal information without their permission, attempt to access data that isn't yours, disrupt the service, or send spam through the feedback form. We may remove accounts or content that break these rules.
+
+#### Your content
+You keep ownership of the profiles and feedback you submit. You allow us to store and process them only to provide the app's features.
+
+#### No warranty
+The app is provided as is, without guarantees of accuracy or availability. It may change or be taken offline at any time. To the extent the law allows, the project team isn't liable for decisions made using its results.
+
+#### Privacy
+How we handle your data is described in the Privacy policy.
+
+#### Contact
+Questions about these terms can be sent through the **Feedback** page.
+"""
 
 
 # 4. Navigation
@@ -881,6 +950,15 @@ def account_page():
 # each page keeps its own URL and only the active one executes. Admin-only pages
 # are registered only for admins, so other visitors can't reach them by URL.
 FEEDBACK_PAGE = st.Page(feedback_page, title="Feedback", icon=":material/feedback:", url_path="feedback")
+# Reachable by URL (Google's consent screen links to them) but kept out of the menu.
+PRIVACY_PAGE = st.Page(
+    lambda: legal_page("Privacy policy", ":material/policy:", PRIVACY_POLICY),
+    title="Privacy policy", url_path="privacy", visibility="hidden",
+)
+TERMS_PAGE = st.Page(
+    lambda: legal_page("Terms of service", ":material/gavel:", TERMS_OF_SERVICE),
+    title="Terms of service", url_path="terms", visibility="hidden",
+)
 ACCOUNT_PAGE = st.Page(
     account_page,
     title=(USER["name"] or "Account").split()[0] if USER else "Sign in",
@@ -906,7 +984,7 @@ pg = st.navigation(
             st.Page(upskill_bridge_page, title="Upskill bridge", icon=":material/route:", url_path="upskill-bridge"),
             st.Page(progress_tracking_page, title="Progress tracking", icon=":material/bar_chart:", url_path="progress-tracking"),
         ],
-        "Account": [ACCOUNT_PAGE, FEEDBACK_PAGE],
+        "Account": [ACCOUNT_PAGE, FEEDBACK_PAGE, PRIVACY_PAGE, TERMS_PAGE],
     },
     position="top",
 )
