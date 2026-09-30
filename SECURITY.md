@@ -33,9 +33,9 @@ Only the latest code on the `main` branch and the live deployment at <https://sk
 
 **Out of scope**
 
-- Issues in Streamlit Community Cloud, Auth0, Supabase, Google, or GitHub themselves. Please report those to the provider.
+- Issues in Streamlit Community Cloud, Auth0, Supabase, Google, or GitHub themselves. If you find those, then please report them to the provider.
 - Security headers, cookies, or redirects controlled by the `streamlit.app` hosting platform.
-- Denial-of-service or load testing, and spam that the feedback form's per-session limit already addresses.
+- Any form of Denial-of-service or load testing, and spam that the feedback form's per-session limit already addresses.
 - Social engineering, phishing, or physical attacks.
 - Accuracy of the demonstration data or of skill and gap scores (please use the Feedback page for these).
 
@@ -57,9 +57,3 @@ We won't pursue action against good-faith research that follows this policy. Ple
 - **Uploads:** resumes, syllabi, and job files are processed in memory and not stored.
 - **Feedback:** the reporter's email is stored in the database only, never in a public GitHub issue.
 - **Secrets** are kept in Streamlit secrets. `.streamlit/secrets.toml` and `.env` are git-ignored.
-
-## For contributors
-
-- Never commit real secrets. Use [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example) as the template.
-- If a secret is ever committed or shared, **rotate it immediately**. Deleting the commit isn't enough, because it stays in git history and forks. The relevant places are Auth0 (client secret), Supabase (secret key), the `cookie_secret`, and GitHub (token).
-- Run `python -m pytest tests` before pushing; the tests cover the visitor, member, and admin access rules.
